@@ -1,0 +1,43 @@
+---
+virtualmachines:
+  - name: "rhel"
+    image: "rhel-10-0-07-09-25-3"
+    bootloader: efi
+    memory: "4G"
+    cores: 1
+    image_size: "40G"
+    tags:
+      - key: "AnsibleGroup"
+        value: "bastions"
+    networks:
+      - default
+    packages:
+      - httpd
+# For cockpit
+#    services:
+#      - name: cockpit
+#        ports:
+#          - port: 9090
+#            protocol: TCP
+#            targetPort: 9090
+#            name: cockpit
+#    routes:
+#      - name: cockpit
+#        host: cockpit
+#        service: cockpit
+#        targetPort: 9090
+#        tls: true
+#        tls_termination: Edge
+    # disks:
+    #   - metadata:
+    #       name: "rhel-lvm-INSTANCEGUID"
+    #     spec:
+    #       source:
+    #         blank: {}
+    #       pvc:
+    #         accessModes:
+    #           - ReadWriteMany
+    #         volumeMode: Block
+    #         resources:
+    #           requests:
+    #             storage: "5G"
