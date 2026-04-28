@@ -13,4 +13,6 @@ cosign verify --insecure-ignore-tlog \
   --key /etc/pki/sigstore/SIGSTORE-redhat-release3 \
   registry.access.redhat.com/ubi9/ubi:latest
 
+cat /home/rhel/hi-openjdk.sig | jq '.[0].optional'
+
 echo "module-01 solve complete" >> /tmp/progress.log

@@ -59,6 +59,9 @@ podman run -d \
 echo "Registry started at ${REGISTRY_HOST}" >> /tmp/progress.log
 
 # Write REGISTRY to rhel user's bashrc for persistence across terminal sessions
+# Ensure the file is rhel-owned before writing so subsequent su -l rhel appends work
+touch /home/rhel/.bashrc
+chown rhel:rhel /home/rhel/.bashrc
 echo "export REGISTRY=${REGISTRY_HOST}" >> /home/rhel/.bashrc
 
 # Install Quarkus CLI via jbang for the rhel user
@@ -88,9 +91,9 @@ chmod a+x /home/rhel/sample-app/mvnw
 chmod -R a+rX /home/rhel/sample-app/.mvn/ /home/rhel/sample-app/src/
 chmod a+r /home/rhel/sample-app/pom.xml
 
-# Pull base images
-podman pull registry.access.redhat.com/hi/openjdk:21-builder
-podman pull registry.access.redhat.com/hi/openjdk:21-runtime
+# Pull base images into rhel's rootless store
+su -l rhel -c "podman pull registry.access.redhat.com/hi/openjdk:21-builder"
+su -l rhel -c "podman pull registry.access.redhat.com/hi/openjdk:21-runtime"
 
 # Pre-warm Maven dependency cache
 su -l rhel -c "podman run --rm --net=host \
