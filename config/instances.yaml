@@ -12,32 +12,33 @@ virtualmachines:
     networks:
       - default
     packages:
-      - httpd
-# For cockpit
-#    services:
-#      - name: cockpit
-#        ports:
-#          - port: 9090
-#            protocol: TCP
-#            targetPort: 9090
-#            name: cockpit
-#    routes:
-#      - name: cockpit
-#        host: cockpit
-#        service: cockpit
-#        targetPort: 9090
-#        tls: true
-#        tls_termination: Edge
-    # disks:
-    #   - metadata:
-    #       name: "rhel-lvm-INSTANCEGUID"
-    #     spec:
-    #       source:
-    #         blank: {}
-    #       pvc:
-    #         accessModes:
-    #           - ReadWriteMany
-    #         volumeMode: Block
-    #         resources:
-    #           requests:
-    #             storage: "5G"
+      - podman
+      - nano
+      - git
+      - jq
+    services:
+      - name: registry-http
+        ports:
+          - port: 80
+            protocol: TCP
+            targetPort: 80
+            name: registry-http
+      - name: registry
+        ports:
+          - port: 443
+            protocol: TCP
+            targetPort: 443
+            name: registry
+    routes:
+      - name: registry-http
+        host: registry
+        service: registry-http
+        targetPort: 80
+        tls: false
+        path: "/.well-known/"
+      - name: registry
+        host: registry
+        service: registry
+        targetPort: 443
+        tls: true
+        tls_termination: Edge

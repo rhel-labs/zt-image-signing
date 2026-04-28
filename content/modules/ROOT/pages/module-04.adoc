@@ -1,0 +1,123 @@
+= SBOM Attestation
+
+.*Module Overview*
+[sidebar]
+--
+*Duration:* 5-6 minutes +
+*Learning Objectives:*
+
+* Attach a signed SBOM as an OCI attestation
+* Verify the SBOM attestation
+* Download and inspect the attestation locally
+* Understand why attestations are preferred over attachments
+--
+
+[[about-attestations]]
+== What Is an Attestation?
+
+An attestation is metadata about an image -- such as an SBOM, scan results, or build provenance -- that is:
+
+1. Signed with the same key or identity as the image itself
+2. Stored alongside the image in the registry as an OCI artifact
+3. Verifiable by consumers before they run the image
+
+By attaching the SBOM as a signed attestation, anyone can prove that the SBOM came from the same trusted source as the image. This also avoids the deprecated `cosign attach` subcommand, which will be removed in a future release.
+
+[[attach-sbom]]
+== Attach the SBOM as a Signed Attestation
+
+[NOTE]
+====
+The SBOM for your image was pre-generated during lab setup at `~/scanning/rhhi-demo.spdx`. In a real workflow you would generate this after each build using `syft`:
+
+[source,bash]
+----
+syft rhhi-demo:v1 -o spdx-json=~/scanning/rhhi-demo.spdx
+----
+====
+
+Attach the SBOM using `cosign attest`. The `--predicate` flag points to the SBOM file, and `--type spdxjson` tells cosign the predicate format.
+
+[source,bash,role=execute,subs=attributes+]
+----
+cosign attest --tlog-upload=false \
+  --yes --key cosign.key \
+  --predicate ~/scanning/rhhi-demo.spdx --type spdxjson \
+  registry-{guid}.{domain}/rhhi-demo@${IMAGE_DIGEST}
+----
+
+.*Expected output:*
+----
+Using payload from: /home/rhel/scanning/rhhi-demo.spdx
+----
+
+[[verify-attestation]]
+== Verify the SBOM Attestation
+
+Verify the attestation and inspect the package count from the SBOM. `cosign verify-attestation` returns the raw JSON envelope; pipe it through `jq` to extract the package list length.
+
+[source,bash,role=execute,subs=attributes+]
+----
+cosign verify-attestation --insecure-ignore-tlog=true \
+  --key cosign.pub \
+  --type spdxjson \
+  registry-{guid}.{domain}/rhhi-demo@${IMAGE_DIGEST} \
+  | jq -r '.payload' | base64 -d | jq '.predicate.packages | length'
+----
+
+.*Expected output:*
+[source,subs=attributes+]
+----
+WARNING: Skipping tlog verification is an insecure practice that lacks of transparency and auditability verification for the signature.
+
+Verification for registry-{guid}.{domain}/rhhi-demo@sha256:... --
+The following checks were performed on each of these signatures:
+  - The cosign claims were validated
+  - The signatures were verified against the specified public key
+166
+----
+
+The final number is the package count from the SBOM. This confirms:
+
+* The attestation signature is valid
+* The SBOM was signed by the holder of `cosign.key`
+* The SBOM contains the package inventory that was created at build time
+
+[[download-attestation]]
+== Download the Attestation
+
+You can also download the attestation locally for offline inspection or compliance tooling.
+
+[source,bash,role=execute,subs=attributes+]
+----
+cosign download attestation --output-file cosign.sbom \
+  registry-{guid}.{domain}/rhhi-demo@${IMAGE_DIGEST}
+----
+
+The downloaded file is standard JSON and can be processed with any JSON tool.
+
+[source,bash,role=execute]
+----
+file cosign.sbom
+----
+
+[source,bash,role=execute]
+----
+jq -r '.payload' cosign.sbom | base64 -d | jq '.predicate.packages | length'
+----
+
+== Summary
+
+You've established a complete chain of trust for your container image:
+
+* *Signature*: Proves the image hasn't been tampered with since it was signed
+* *SBOM Attestation*: Proves the SBOM belongs to this specific image digest
+* *Verification*: Anyone with the public key can verify both the image and its SBOM
+
+.*Production Best Practices*
+
+* Use keyless signing with OIDC identity (GitHub Actions, GitLab CI, etc.)
+* Store keys in KMS (AWS KMS, Azure Key Vault, GCP KMS, HashiCorp Vault)
+* Enable the Rekor transparency log for audit trails
+* Integrate `cosign verify` and `cosign verify-attestation` into admission controllers (Kyverno, OPA Gatekeeper)
+* Signed SBOMs meet NIST and EU Cyber Resilience Act requirements

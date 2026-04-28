@@ -1,2 +1,2 @@
 #!/bin/sh
-echo "Starting module called module-01" >> /tmp/progress.log
+echo "Starting module-01: Verify Published Signatures" >> /tmp/progress.log

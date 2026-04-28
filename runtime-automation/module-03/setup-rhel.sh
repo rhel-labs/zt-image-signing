@@ -1,2 +1,2 @@
 #!/bin/sh
-echo "Starting module called module-03" >> /tmp/progress.log
+echo "Starting module-03: Sign and Verify" >> /tmp/progress.log

@@ -1,29 +1,79 @@
-= Tabs
+= Sign and Verify
 
-[source,yaml]
+.*Module Overview*
+[sidebar]
+--
+*Duration:* 4-5 minutes +
+*Learning Objectives:*
+
+* Sign a container image with cosign using a local key pair
+* Verify the image signature
+* Understand how signatures are stored in the registry
+--
+
+[[sign-image]]
+== Sign the Image
+
+Use cosign to sign your image. The `--tlog-upload=false` flag skips uploading to the Rekor public transparency log -- as covered in Module 1, we skip this in lab environments to avoid adding noise to the public Sigstore instance.
+
+The signature references the immutable digest rather than the mutable tag. Make sure `IMAGE_DIGEST` is set in your session (run `echo $IMAGE_DIGEST` to confirm; if empty, run `source ~/.bashrc`).
+
+[source,bash,role=execute,subs=attributes+]
 ----
-tabs:
-  - name: ">_ terminal"
-    type: "terminal"
-  - name: "Asciidoc Doc"
-    url: https://docs.asciidoctor.org/asciidoc/latest/syntax-quick-reference/
-    external: true
+cosign sign --tlog-upload=false \
+  --yes --key cosign.key \
+  registry-{guid}.{domain}/rhhi-demo@${IMAGE_DIGEST}
 ----
 
-=== Explanation
+.*Expected output:*
+[source,subs=attributes+]
+----
+Pushing signature to: registry-{guid}.{domain}/rhhi-demo
+----
 
-- `name`: The label that appears on the tab in the UI.
-- `type`: Defines the tab layout. Options include:
-  - `terminal`: For a single terminal-like block.
-  - `double-terminal`: For a side-by-side terminal view.
-- `url`: Used to link to an external page.
-- `path`: (If no url is defined) The base path where the service will be served, e.g., `/tty`.
-- `port`: (If no url is defined) The port where the service will be served, e.g., `3000`.
-- `external`: If `true`, the link opens in a new tab/window.
+The signature is stored as an OCI artifact in the same repository as your image. Cosign appends it as a separate manifest with a `.sig` tag suffix. You can see this if you list the repository tags -- the registry will show both `:v1` and a digest-tagged signature artifact.
 
-== Resulting UI
+[[verify-signature]]
+== Verify the Signature
 
-You might see two tabs in your UI:
-- A terminal emulator style display
-- A link to AsciiDoc syntax reference
+Just as you verified Red Hat's signatures in Module 1, you can now verify your own. This is the same workflow a consumer of your image would run to confirm the image is authentic.
 
+[source,bash,role=execute,subs=attributes+]
+----
+cosign verify --insecure-ignore-tlog=true \
+  --key cosign.pub \
+  registry-{guid}.{domain}/rhhi-demo@${IMAGE_DIGEST}
+----
+
+.*Expected output:*
+[source,subs=attributes+]
+----
+WARNING: Skipping tlog verification is an insecure practice that lacks of transparency and auditability verification for the signature.
+
+Verification for registry-{guid}.{domain}/rhhi-demo@sha256:... --
+The following checks were performed on each of these signatures:
+  - The cosign claims were validated
+  - The signatures were verified against the specified public key
+
+[{"critical":{"identity":{"docker-reference":"registry-{guid}.{domain}/rhhi-demo"},...
+----
+
+[NOTE]
+====
+The tlog WARNING is expected. We skipped the Rekor transparency log when signing, so we must also skip tlog verification here. The important line is the `Verification for ...` confirmation that the signature is cryptographically valid.
+
+In production, both signing and verification should use the transparency log. Remove `--tlog-upload=false` and `--insecure-ignore-tlog=true` from your production commands.
+====
+
+== The Chain of Trust So Far
+
+You now have:
+
+* An image in your local registry (`rhhi-demo:v1`)
+* A cosign key pair (`cosign.key` / `cosign.pub`)
+* A valid signature stored in the registry alongside the image
+* The ability to verify that signature
+
+Anyone with the public key and registry access can verify the image is authentic and hasn't been modified since signing.
+
+In the next module, you'll attach a signed SBOM as an attestation, adding another layer of verifiable provenance.

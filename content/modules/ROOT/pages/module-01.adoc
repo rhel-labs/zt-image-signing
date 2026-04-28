@@ -1,39 +1,91 @@
-= Writing your lab
+= Verifying Published Signatures
 
-== Variables
+.*Module Overview*
+[sidebar]
+--
+*Duration:* 5-6 minutes +
+*Learning Objectives:*
 
-The `lab_name` var, known as an asciidoc attribute, is set in `site.yml` and can be used to set the lab_name (Example: {lab_name}) or title of your content.
-They are both free to change its value and if you prefer to use a different var name, you can change the value of `lab_name`, for example to `title` in `site.yml` and then reference it in your content as `\{site-title}` (Ex: {site-title}).
+* Understand how cosign verifies container image signatures
+* Verify Red Hat published image signatures using a public key URL
+* Verify UBI image signatures using a local signing key
+* Save verification output for later reference
+--
 
-Example:
-[source,asciidoc]
+[[introduction]]
+== Introduction
+
+How do you prove that a container image you downloaded is authentic and hasn't been tampered with? The answer is cryptographic signing. In this module, you'll use `cosign` to verify the signatures that Red Hat publishes on its hardened images.
+
+=== About Cosign and the Transparency Log
+
+`cosign` is the standard tool for signing and verifying OCI container images. It works by:
+
+1. Attaching a cryptographic signature as an OCI artifact in the same registry as the image
+2. Optionally recording that signature in the Sigstore **Rekor transparency log**, a public, append-only ledger that anyone can audit
+
+[NOTE]
+====
+*About `--insecure-ignore-tlog` in this lab*
+
+In the commands below you will see `--insecure-ignore-tlog`. This flag tells cosign to skip verification against the Rekor transparency log.
+
+In this lab we use local key pairs and skip the public Rekor log to avoid adding lab-generated noise to the public Sigstore instance. Production signing should *always* use the transparency log for auditability.
+
+When you see the warning:
+
+ WARNING: Skipping tlog verification is an insecure practice that lacks transparency and auditability verification for the signature.
+
+This is expected. In a production environment, remove this flag and let cosign use Rekor normally.
+====
+
+[[verify-openjdk]]
+== Verify the OpenJDK Image Signature
+
+Red Hat provides signing keys for all hardened images in the catalog. The "Verify Build" section on each image page gives you the key URL needed to check the signature.
+
+Let's verify the `openjdk:21-runtime` image from the Red Hat Hardened Images catalog using its published public key.
+
+[source,bash,role=execute,subs=attributes+]
 ----
-{my_var}
+cosign verify --insecure-ignore-tlog \
+  --output-file hi-openjdk.sig \
+  --key https://security.access.redhat.com/data/63405576.txt \
+  {rhhi-registry}/openjdk:21-runtime
 ----
 
-Variable rendered:
-
-{my_var}
-
-== Inserting Images
-
-To display an image in your Antora documentation, place the image file in the `assets/images/` folder of the module, then reference it using the `image::[]` macro
-
-=== Basic Syntax
-
-[source,asciidoc]
+.*Expected output:*
 ----
-image::example-image.png[Example Image, width=100, height=100]
+Verification for registry.access.redhat.com/hi/openjdk:21-runtime --
+The following checks were performed on each of these signatures:
+  - The cosign claims were validated
+  - The signatures were verified against the specified public key
 ----
 
-This will render the `example-image.png` image as it follows:
+This confirms that `openjdk:21-runtime` is exactly the hardened image Red Hat published. The verification output is saved to `hi-openjdk.sig` for later reference.
 
-image::example-image.png[Example Image, width=100, height=100]
+[[verify-ubi]]
+== Verify the UBI Image Signature
 
-=== Understanding the Antora Configuration
+Red Hat distributes signing keys through several channels. For UBI images, the key ships with RHEL itself so you can verify images without reaching out to an external URL.
 
-This lab explains the purpose and structure of the YAML configuration used in an Antora-based documentation site.
+[source,bash,role=execute,subs=attributes+]
+----
+cosign verify --insecure-ignore-tlog \
+  --output-file ubi-latest.sig \
+  --key /etc/pki/sigstore/SIGSTORE-redhat-release3 \
+  registry.access.redhat.com/ubi9/ubi:latest
+----
 
-=== Basic Structure
+Both methods -- key URL and local key file -- produce the same verifiable result. The flexibility lets you integrate signature verification into environments with or without internet access.
 
-The configuration is written in YAML `ui-config.yml` and includes two main sections: `antora` and `tabs`. Click next to know more.
+Feel free to examine the `.sig` files to see the JSON arrays that cosign produces.
+
+[source,bash,role=execute]
+----
+cat hi-openjdk.sig | jq '.[0].optional'
+----
+
+== Summary
+
+You've verified that Red Hat's published hardened images carry valid, cryptographically verifiable signatures. In the next module, you'll push your own image to a local registry and set up keys to sign it.

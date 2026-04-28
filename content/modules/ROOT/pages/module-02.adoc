@@ -1,28 +1,112 @@
-= Antora
+= Push to Registry and Generate Keys
 
-The `antora` key in `ui-config.yml` defines how the documentation site is built using Antora.
+.*Module Overview*
+[sidebar]
+--
+*Duration:* 5-6 minutes +
+*Learning Objectives:*
 
-[source,yaml]
+* Push a container image to the local SSL-enabled registry
+* Capture the image digest for use with cosign
+* Generate a cosign key pair for signing
+--
+
+[[local-registry]]
+== Your Local Container Registry
+
+This lab environment includes a private container registry running at `registry-{guid}.{domain}`. It is secured with a TLS certificate issued by ZeroSSL, so standard container tools work without any insecure-registry configuration.
+
+The registry requires no login -- it is intentionally open for this lab so you can focus on signing rather than credential management.
+
+[NOTE]
+====
+The `REGISTRY` environment variable pointing to your local registry was set during lab setup and persists in your terminal session via `~/.bashrc`. If you open a new terminal tab, run:
+
+[source,bash]
 ----
-antora:
-  name: modules
-  dir: www
-  modules:
-    - name: module-01 
-      label: "Writing your lab"
-    - name: module-02
-      label: "Antora"
-    - name: module-03
-      label: "Tabs"
+source ~/.bashrc
 ----
 
-=== Explanation
+You can check the current value at any time with `echo $REGISTRY`.
+====
 
-- `name`: The name of the documentation folder, here called `modules`.
-- `dir`: The directory where the documentation files will be located (`www`). 
-- `modules`: The list of modules that make up your lab.
+[[push-image]]
+== Tag and Push the Image
 
-Each module has:
+The `rhhi-demo:v1` image was built during lab setup and lives in local Podman storage. To sign it, cosign needs the image to be in an OCI registry. Tag it for your local registry and push it.
 
-- `name`: The file name within the `pages` directory.
-- `label`: A human-readable label for display in navigation.
+[source,bash,role=execute,subs=attributes+]
+----
+podman tag rhhi-demo:v1 registry-{guid}.{domain}/rhhi-demo:v1
+----
+
+[source,bash,role=execute,subs=attributes+]
+----
+podman push registry-{guid}.{domain}/rhhi-demo:v1
+----
+
+[[capture-digest]]
+== Capture the Image Digest
+
+Cosign 2.0 requires digest-based references for signing. Tags like `:v1` are mutable -- anyone could overwrite them -- so signing a tag would be insecure. The digest is a content-addressed SHA256 hash that is immutable.
+
+Capture the digest and write it to `~/.bashrc` so it persists across terminal sessions.
+
+[source,bash,role=execute,subs=attributes+]
+----
+IMAGE_DIGEST=$(podman inspect --format='{{.Digest}}' registry-{guid}.{domain}/rhhi-demo:v1)
+----
+
+[source,bash,role=execute]
+----
+echo "export IMAGE_DIGEST=${IMAGE_DIGEST}" >> ~/.bashrc
+----
+
+[source,bash,role=execute]
+----
+echo "Image digest: ${IMAGE_DIGEST}"
+----
+
+.*Expected output:*
+----
+Image digest: sha256:abc123...
+----
+
+[[generate-keys]]
+== Generate a Cosign Key Pair
+
+Generate a key pair for signing. For this lab we use an empty passphrase via the environment variable so the commands don't prompt interactively.
+
+[TIP]
+====
+*Cosign Key Strategies*
+
+* *Development*: Generate local key pairs (as we do here)
+* *Production*: Keyless signing with OIDC identity (GitHub, GitLab, Google)
+* *Enterprise*: KMS-backed keys -- AWS KMS, Azure Key Vault, GCP KMS, HashiCorp Vault
+* *High security*: Hardware Security Modules (HSM)
+
+Never commit `cosign.key` to a git repository.
+====
+
+[source,bash,role=execute]
+----
+export COSIGN_PASSWORD=""
+----
+
+[source,bash,role=execute]
+----
+cosign generate-key-pair
+----
+
+.*Expected output:*
+----
+Private key written to cosign.key
+Public key written to cosign.pub
+----
+
+The private key (`cosign.key`) is what you'll use to sign. The public key (`cosign.pub`) is what consumers use to verify. Share the public key widely -- keep the private key secret.
+
+== Summary
+
+Your image is in the registry and you have a key pair ready. In the next module, you'll sign the image and verify the signature.

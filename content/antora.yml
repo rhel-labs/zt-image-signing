@@ -2,3 +2,8 @@
 
 name: modules
 version: master
+
+asciidoc:
+  attributes:
+    rhhi-registry: 'registry.access.redhat.com/hi'
+    ubi-registry: 'registry.access.redhat.com/ubi9'
