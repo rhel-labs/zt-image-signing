@@ -90,6 +90,7 @@ cp $SETUP_FILES/quarkus/.dockerignore /home/rhel/sample-app/
 chmod a+x /home/rhel/sample-app/mvnw
 chmod -R a+rX /home/rhel/sample-app/.mvn/ /home/rhel/sample-app/src/
 chmod a+r /home/rhel/sample-app/pom.xml
+chown -R rhel:rhel /home/rhel
 
 # Pull base images into rhel's rootless store
 su -l rhel -c "podman pull registry.access.redhat.com/hi/openjdk:21-builder"
@@ -113,6 +114,5 @@ echo "SBOM generated at ~/scanning/rhhi-demo.spdx" >> /tmp/progress.log
 
 # Clean up temp files
 rm -rf $TMPDIR /tmp/quarkus-install.sh
-chown -R rhel:rhel /home/rhel
 
 echo "Setup complete" >> /tmp/progress.log
