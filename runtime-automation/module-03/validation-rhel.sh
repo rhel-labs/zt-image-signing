@@ -1,30 +1,23 @@
 #!/bin/sh
-echo "Validating module-03: Sign and Verify" >> /tmp/progress.log
+echo "Validating module-03" >> /tmp/progress.log
 
-# Load environment variables from bashrc
 . /home/rhel/.bashrc 2>/dev/null || true
 
-if [ -z "$REGISTRY" ]; then
-    echo "FAIL: REGISTRY environment variable not set"
-    echo "HINT: Run 'source ~/.bashrc' to load the REGISTRY variable"
-    exit 1
-fi
-
+IMAGE_DIGEST=$(runuser -u rhel -- podman inspect --format='{{.Digest}}' ${REGISTRY}/rhhi-demo:v1 2>/dev/null)
 if [ -z "$IMAGE_DIGEST" ]; then
-    echo "FAIL: IMAGE_DIGEST environment variable not set"
-    echo "HINT: Run 'source ~/.bashrc' to load the IMAGE_DIGEST variable"
+    echo "FAIL: Could not find rhhi-demo:v1 in registry storage" >> /tmp/progress.log
+    echo "HINT: Did you complete module 2 to push the image to the registry?" >> /tmp/progress.log
     exit 1
 fi
 
-# Verify the signature exists and is valid
 export COSIGN_PASSWORD=""
-if cosign verify --insecure-ignore-tlog=true \
+if /usr/local/bin/cosign verify --insecure-ignore-tlog=true \
   --key /home/rhel/cosign.pub \
   ${REGISTRY}/rhhi-demo@${IMAGE_DIGEST} > /dev/null 2>&1; then
-    echo "PASS: Image signature verification succeeded"
+    echo "PASS: Image signature verified" >> /tmp/progress.log
     exit 0
 else
-    echo "FAIL: Image signature verification failed"
-    echo "HINT: Make sure you ran 'cosign sign' with your cosign.key for the correct image digest"
+    echo "FAIL: Image signature verification failed" >> /tmp/progress.log
+    echo "HINT: Did you complete the cosign sign step? Verify your key and image digest are correct" >> /tmp/progress.log
     exit 1
 fi

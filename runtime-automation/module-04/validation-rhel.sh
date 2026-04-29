@@ -1,42 +1,33 @@
 #!/bin/sh
-echo "Validating module-04: SBOM Attestation" >> /tmp/progress.log
+echo "Validating module-04" >> /tmp/progress.log
 
-# Load environment variables from bashrc
 . /home/rhel/.bashrc 2>/dev/null || true
 
-if [ -z "$REGISTRY" ]; then
-    echo "FAIL: REGISTRY environment variable not set"
-    echo "HINT: Run 'source ~/.bashrc' to load the REGISTRY variable"
-    exit 1
-fi
-
+IMAGE_DIGEST=$(runuser -u rhel -- podman inspect --format='{{.Digest}}' ${REGISTRY}/rhhi-demo:v1 2>/dev/null)
 if [ -z "$IMAGE_DIGEST" ]; then
-    echo "FAIL: IMAGE_DIGEST environment variable not set"
-    echo "HINT: Run 'source ~/.bashrc' to load the IMAGE_DIGEST variable"
+    echo "FAIL: Could not find rhhi-demo:v1 in registry storage" >> /tmp/progress.log
+    echo "HINT: Did you complete module 2 to push the image to the registry?" >> /tmp/progress.log
     exit 1
 fi
 
 export COSIGN_PASSWORD=""
-
-# Verify the SBOM attestation exists and is valid
-ATTEST_OUTPUT=$(cosign verify-attestation --insecure-ignore-tlog=true \
+ATTEST_OUTPUT=$(/usr/local/bin/cosign verify-attestation --insecure-ignore-tlog=true \
   --key /home/rhel/cosign.pub \
   --type spdxjson \
   ${REGISTRY}/rhhi-demo@${IMAGE_DIGEST} 2>/dev/null)
 
 if [ $? -ne 0 ]; then
-    echo "FAIL: SBOM attestation verification failed"
-    echo "HINT: Make sure you ran 'cosign attest' with the spdxjson predicate"
+    echo "FAIL: SBOM attestation not found or invalid" >> /tmp/progress.log
+    echo "HINT: Did you complete the cosign attest step with the SBOM file as the predicate?" >> /tmp/progress.log
     exit 1
 fi
 
-# Check that the package count is greater than 100 (sanity check for real SBOM)
 PKG_COUNT=$(echo "$ATTEST_OUTPUT" | jq -r '.payload' | base64 -d | jq '.predicate.packages | length')
 if [ -z "$PKG_COUNT" ] || [ "$PKG_COUNT" -lt 100 ]; then
-    echo "FAIL: SBOM package count ($PKG_COUNT) is less than expected"
-    echo "HINT: Verify the SBOM at ~/scanning/rhhi-demo.spdx is valid and was generated from rhhi-demo:v1"
+    echo "FAIL: SBOM package count ($PKG_COUNT) is unexpectedly low" >> /tmp/progress.log
+    echo "HINT: Attestation found but package count is low - was the correct SBOM attached?" >> /tmp/progress.log
     exit 1
 fi
 
-echo "PASS: SBOM attestation verified with ${PKG_COUNT} packages"
+echo "PASS: SBOM attestation verified with ${PKG_COUNT} packages" >> /tmp/progress.log
 exit 0
