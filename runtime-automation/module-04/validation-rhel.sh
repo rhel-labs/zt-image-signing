@@ -3,7 +3,7 @@ echo "Validating module-04" >> /tmp/progress.log
 
 . /home/rhel/.bashrc 2>/dev/null || true
 
-IMAGE_DIGEST=$(runuser -u rhel -- podman inspect --format='{{.Digest}}' ${REGISTRY}/rhhi-demo:v1 2>/dev/null)
+IMAGE_DIGEST=$(runuser -l rhel -c "podman inspect --format='{{.Digest}}' ${REGISTRY}/rhhi-demo:v1" 2>/dev/null)
 if [ -z "$IMAGE_DIGEST" ]; then
     echo "FAIL: Could not find rhhi-demo:v1 in registry storage" >> /tmp/progress.log
     echo "HINT: Did you complete module 2 to push the image to the registry?" >> /tmp/progress.log
