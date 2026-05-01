@@ -5,7 +5,7 @@ echo "Solving module-04: SBOM Attestation" >> /tmp/progress.log
 . /home/rhel/.bashrc 2>/dev/null || true
 
 # Look up the image digest from local podman storage
-IMAGE_DIGEST=$(runuser -u rhel -- podman inspect --format='{{.Digest}}' ${REGISTRY}/rhhi-demo:v1 2>/dev/null)
+IMAGE_DIGEST=$(runuser -l rhel -c "podman inspect --format='{{.Digest}}' ${REGISTRY}/rhhi-demo:v1" 2>/dev/null)
 
 export COSIGN_PASSWORD=""
 
