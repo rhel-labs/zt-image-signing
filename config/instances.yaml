@@ -41,4 +41,3 @@ virtualmachines:
         service: registry
         targetPort: 443
         tls: true
-        tls_termination: Edge
