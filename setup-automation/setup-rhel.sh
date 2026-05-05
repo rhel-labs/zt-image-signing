@@ -107,6 +107,10 @@ su -l rhel -c "podman build -t rhhi-demo:v1 \
   -f /home/rhel/sample-app/Containerfile /home/rhel/sample-app"
 echo "rhhi-demo:v1 built" >> /tmp/progress.log
 
+# Enable rootless podman socket so syft can access the image store
+loginctl enable-linger rhel
+su -l rhel -c "systemctl --user start podman.socket"
+
 # Pre-generate SBOM for the image
 su -l rhel -c "mkdir -p ~/scanning && \
   syft rhhi-demo:v1 -o spdx-json=~/scanning/rhhi-demo.spdx"

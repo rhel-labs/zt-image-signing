@@ -10,11 +10,9 @@ if [ -z "$IMAGE_DIGEST" ]; then
     exit 1
 fi
 
-export COSIGN_PASSWORD=""
-ATTEST_OUTPUT=$(/usr/local/bin/cosign verify-attestation --insecure-ignore-tlog=true \
-  --key /home/rhel/cosign.pub \
-  --type spdxjson \
-  ${REGISTRY}/rhhi-demo@${IMAGE_DIGEST} 2>>/tmp/progress.log)
+ATTEST_OUTPUT=$(runuser -l rhel -c "COSIGN_PASSWORD='' /usr/local/bin/cosign verify-attestation \
+  --insecure-ignore-tlog=true --key ~/cosign.pub --type spdxjson \
+  ${REGISTRY}/rhhi-demo@${IMAGE_DIGEST}" 2>>/tmp/progress.log)
 
 if [ $? -ne 0 ]; then
     echo "FAIL: SBOM attestation not found or invalid" >> /tmp/progress.log
