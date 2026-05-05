@@ -109,7 +109,7 @@ echo "rhhi-demo:v1 built" >> /tmp/progress.log
 
 # Enable rootless podman socket so syft can access the image store
 loginctl enable-linger rhel
-su -l rhel -c "systemctl --user start podman.socket"
+systemctl --machine=rhel@.host --user start podman.socket
 
 # Pre-generate SBOM for the image
 su -l rhel -c "mkdir -p ~/scanning && \
