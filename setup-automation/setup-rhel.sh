@@ -107,15 +107,8 @@ su -l rhel -c "podman build -t rhhi-demo:v1 \
   -f /home/rhel/sample-app/Containerfile /home/rhel/sample-app"
 echo "rhhi-demo:v1 built" >> /tmp/progress.log
 
-# Enable rootless podman socket so syft can access the image store
-loginctl enable-linger rhel
-RHEL_UID=$(id -u rhel)
-systemctl start user@${RHEL_UID}.service
-systemctl --machine=rhel@.host --user start podman.socket
-
-# Pre-generate SBOM for the image
-su -l rhel -c "mkdir -p ~/scanning && \
-  syft rhhi-demo:v1 -o spdx-json=~/scanning/rhhi-demo.spdx"
+# Pre-generate SBOM via OCI archive export (no podman socket required)
+su -l rhel -c "mkdir -p ~/scanning && podman save rhhi-demo:v1 --format oci-archive -o /tmp/rhhi-demo-oci.tar && syft oci-archive:/tmp/rhhi-demo-oci.tar -o spdx-json=~/scanning/rhhi-demo.spdx && rm /tmp/rhhi-demo-oci.tar"
 echo "SBOM generated at ~/scanning/rhhi-demo.spdx" >> /tmp/progress.log
 
 # Clean up temp files
